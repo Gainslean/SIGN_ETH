@@ -11,3 +11,5 @@
 В ТЕРМИНАЛ ПИШЕМ pip install -r requirements.txt
 
 ВСЯ НАСТРОЙКА В ФАЙЛЕ main . ЗАПУСКАТЬ НАДО ЕГО.
+
+ПОДПИСКА НА https://t.me/gaincryptolox
