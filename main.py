@@ -10,12 +10,13 @@ chein = "Base" # Сеть в которой будет отправка сооб
 
 random_scain = False #  Если True, то будет выбирать рандомную сеть для сигна, на всю пачку счетов.  False если сами хотите указать сеть(пункт выше)
 
-chein_list = ["Arbitrum", "Base", "Polygon", "Ethereum"] # Сюда нужно указать сети, которые будут рандомно выбираться, при  random_scain = True  "Arbitrum", "Base", "Polygon", "Ethereum"
+chein_list = ["Arbitrum", "Polygon", "Base", "Ethereum"] # Сюда нужно указать сети, которые будут рандомно выбираться, при  random_scain = True  "Arbitrum", "Base", "Polygon", "Ethereum"
 
 
-from_time = 30 # Задержка перед началом страта следующего кошелька, в секундах. from_time это минимальное время. Если хотите проще, то 15*60 это 15 минут задержки.
-to_time = 60 #  to_time это максимальное время задержки
+from_time = 30*60 # Задержка перед началом страта следующего кошелька, в секундах. from_time это минимальное время. Если хотите проще, то 15*60 это 15 минут задержки.
+to_time = 120*60 #  to_time это максимальное время задержки
 
+gas_prise = 3 # Если выбирается Ethereum сеть, то скрипт будет чекать раз в минуту газ и выполнит транзу ток если газ ниже этого значения
 
 class Sign:
     def __init__(self, client: Client):
@@ -24,6 +25,19 @@ class Sign:
             contract_address=sign_contract[self.client.chain_name],
             abi=SIGN_ABI
         )
+
+
+    async def get_gas(self):
+
+        while True:
+            gas = await self.client.w3.eth.gas_price
+            gasw = self.client.w3.from_wei(gas, 'gwei')
+            if gasw >= gas_prise:
+                print(f"NOW GAS = {gasw}")
+                await asyncio.sleep(60)
+            if gasw <= gas_prise:
+                break
+
 
     async def randimazer(self):
 
@@ -58,43 +72,68 @@ class Sign:
 
     async def signature(self):
 
-        balance = await self.client.eth_balance()
-        gas = int((await self.client.w3.eth.gas_price) * 6)
-        if balance - gas <= 0:
-            print(f"Недостаточно ЕТН для сигна на кошельке {self.client.address}")
-            print()
+        attempts = 3
 
-        else:
+        for attempt in range(1, attempts + 1):
+
             try:
+
+                if self.client.chain_name == "Ethereum":
+                    await self.get_gas()
+
                 name = await self.randimazer()
+
                 tx = await self.contract.functions.register([
-                    self.client.address,  # address
+
+                    self.client.address,  # addres
                     False,  # bool
                     0,  # uint8 (should be 0-255)
                     0,  # uint64
                     "0x0000000000000000000000000000000000000000",  # address
                     0,  # uint64
                     f"{{\"name\":\"{name}\",\"description\":\"{await self.randimazer()}\",\"data\":[{{\"name\":\"{await self.randimazer()}\",\"type\":\"string\"}}]}}"
-                    ],
-                    b''
-                    # string
-                ).build_transaction(await self.client.prepare_tx())
-                # Отправляем транзакцию
-                print(f"Начинаю работу с кошельком в {self.client.address} в сети {self.client.chain_name} , название сигна = {name}")
+                ], b'').build_transaction(await self.client.prepare_tx())
+
+                print(f"Начинаю работу с кошельком {self.client.address} в сети {self.client.chain_name}, название сигна = {name}")
                 print()
+
                 tx_hash = await self.client.send_transaction(tx, need_hash=True)
                 print(f"Транзакция успешно отправлена: {tx_hash}")
                 print()
+
+                with open('result/done_wallet.txt', 'a', encoding='utf-8') as file: # Делаю запись коша в файл
+                    file.write(f"{self.client.address}\n")
+                print("Сделал запись в успешный файл")
+                print()
+
+                return  # Если транзакция успешна, выходим из метода
+
             except Exception as e:
-                print(f"Ошибка при отправке транзакции: {e}")
-                try:
+
+                if isinstance(e, ValueError):
+                    print(f"На счету {self.client.address} не хватило средств на транзу")
+                    print()
+                    with open('result/fail_wallet.txt', 'a', encoding='utf-8') as file:  # Делаю запись коша в файл с ошибками
+                        file.write(f"{self.client.address}\n")
+                    print("Сделал запись в фейл файл")
+                    print()
+                    return None
+                print(f"Попытка номер {attempt} - Ошибка при отправке транзакции: {e}")
+
+                if attempt < attempts:
+
                     print("Делаю еще одну попытку сигна")
                     print()
                     await asyncio.sleep(2)
-                    await self.signature()
-                except Exception as e:
-                    print(f"Ошибка при отправке транзакции: {e}")
+
+                else:
                     print(f"Кошелек {self.client.address} дефектный, скипаю его")
+                    print()
+                    with open('result/fail_wallet.txt', 'a', encoding='utf-8') as file:  # Делаю запись коша в файл с ошибками
+                        file.write(f"{self.client.address}\n")
+                    print("Сделал запись в фейл файл")
+                    print()
+                    return None
 
     async def main(self):
 
