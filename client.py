@@ -52,24 +52,35 @@ class Client:
 
 
     async def prepare_tx(self, value: int | float = 0):
+
         transaction = {
             'chainId': await self.w3.eth.chain_id,
             'nonce': await self.w3.eth.get_transaction_count(self.address),
             'from': self.address,
             'value': value,
-            'gasPrice': int((await self.w3.eth.gas_price) * 1.8),
         }
+
+        if self.chain_name == "Ethereum":
+            transaction['gasPrice'] = int((await self.w3.eth.gas_price) * 1.1)
+        else:
+            transaction['gasPrice'] = int((await self.w3.eth.gas_price) * 1.8)
 
         if self.eip_1559:
             del transaction['gasPrice']
-
-            base_fee = int(await self.w3.eth.gas_price * 1.8)
+            if self.chain_name == "Ethereum":
+                base_fee = int(await self.w3.eth.gas_price * 1.2)
+            else:
+                base_fee = int(await self.w3.eth.gas_price * 1.8)
             max_priority_fee_per_gas = await self.get_priotiry_fee()
 
             if max_priority_fee_per_gas == 0:
                 max_priority_fee_per_gas = base_fee
 
-            max_fee_per_gas = int(base_fee * 1.2 + max_priority_fee_per_gas)
+            if self.chain_name == "Ethereum":
+                max_fee_per_gas = int(base_fee * 1.05 + max_priority_fee_per_gas)
+            else:
+                max_fee_per_gas = int(base_fee * 1.2 + max_priority_fee_per_gas)
+
 
             transaction['maxPriorityFeePerGas'] = max_priority_fee_per_gas
             transaction['maxFeePerGas'] = max_fee_per_gas
