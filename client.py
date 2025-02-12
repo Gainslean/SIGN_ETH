@@ -57,19 +57,19 @@ class Client:
             'nonce': await self.w3.eth.get_transaction_count(self.address),
             'from': self.address,
             'value': value,
-            'gasPrice': int((await self.w3.eth.gas_price) * 1.5),
+            'gasPrice': int((await self.w3.eth.gas_price) * 1.8),
         }
 
         if self.eip_1559:
             del transaction['gasPrice']
 
-            base_fee = int(await self.w3.eth.gas_price * 1.5)
+            base_fee = int(await self.w3.eth.gas_price * 1.8)
             max_priority_fee_per_gas = await self.get_priotiry_fee()
 
             if max_priority_fee_per_gas == 0:
                 max_priority_fee_per_gas = base_fee
 
-            max_fee_per_gas = int(base_fee * 1.5 + max_priority_fee_per_gas)
+            max_fee_per_gas = int(base_fee * 1.2 + max_priority_fee_per_gas)
 
             transaction['maxPriorityFeePerGas'] = max_priority_fee_per_gas
             transaction['maxFeePerGas'] = max_fee_per_gas
