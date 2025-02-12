@@ -1,3 +1,3 @@
-asyncio
-web3
-termcolor
+asyncio==3.4.3
+web3==6.20.1
+termcolor==2.3.0
